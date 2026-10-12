@@ -4,6 +4,7 @@ const otpGenerator = require("otp-generator");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const nodemailer = require("nodemailer");
 
 
 //send OTP
@@ -207,7 +208,7 @@ exports.login = async (req, res) => {
       const payload = {
         email: user.email,
         id: user._id,
-        role: user.role,
+        accountType: user.accountType,
       };
 
       const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -248,4 +249,105 @@ exports.login = async (req, res) => {
     });
 
   }
+};
+
+// //chnage Password
+// exports.changePassword = async (req, res) =>{
+//   //get data from req body
+//   //get oldPassword, newPassword, confirmNewPassword
+//   //Validation
+
+//   //Update pwd in DB
+//   //send mail - Password updated
+//  //return responce
+// }
+
+
+//Change Password
+exports.changePassword = async (req, res) => {
+    try {
+        //get data from req body
+        const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+        //get oldPassword, newPassword, confirmNewPassword
+
+        //Validation
+        if (!oldPassword || !newPassword || !confirmNewPassword) {
+            return res.status(403).json({
+                success: false,
+                message: "All fields are required",
+            });
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "New password and confirm new password do not match",
+            });
+        }
+
+        //Get user details
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        //Check old password
+        const isPasswordMatch = await bcrypt.compare(
+            oldPassword,
+            user.password
+        );
+
+        if (!isPasswordMatch) {
+            return res.status(401).json({
+                success: false,
+                message: "Old password is incorrect",
+            });
+        }
+
+        //Update pwd in DB
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        user.password = hashedPassword;
+        await user.save();
+
+        //send mail - Password updated
+        const transporter = nodemailer.createTransport({
+            host: process.env.MAIL_HOST,
+            auth: {
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASS,
+            },
+        });
+
+        await transporter.sendMail({
+            from: process.env.MAIL_USER,
+            to: user.email,
+            subject: "Password Updated Successfully",
+            html: `
+                <h2>Password Updated</h2>
+                <p>Hello ${user.firstName},</p>
+                <p>Your account password has been updated successfully.</p>
+                <p>If you did not make this change, please contact support.</p>
+            `,
+        });
+
+        //return response
+        return res.status(200).json({
+            success: true,
+            message: "Password updated successfully",
+        });
+
+    } catch (error) {
+        console.log(error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to update password. Please try again",
+        });
+    }
 };
