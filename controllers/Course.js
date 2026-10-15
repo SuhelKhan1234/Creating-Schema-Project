@@ -39,7 +39,7 @@ exports.createCourse = async (req, res) => {
         }
 
         //check given tag is valid or not
-        const tagDetails = await Tag.findById{tag};
+        const tagDetails = await Tag.findById(tag);
         if(!tagDetails){
             return res.status(404).json({
             success:false,
@@ -120,7 +120,7 @@ exports.showAllCourses  = async (req, res)=>{
         return res.status(500).json({
             success:false,
             message:'Cannot Fatch course data',
-            error = error.message,
+            error:error.message,
 
         })
     }
