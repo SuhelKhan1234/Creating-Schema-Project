@@ -89,7 +89,8 @@ exports.gatAllUserDetails = async (req, res)=> {
         //get id
         const  id = req.user.id;
         //validation and get user details
-        const userDetails = await User.findById(id)
+        const userDetails = await User.findById(id).populate("additionalDetails").exec();
+        
         //return res
         return res.status(200).json({
             success:true,
